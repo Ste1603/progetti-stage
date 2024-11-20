@@ -1,0 +1,93 @@
+datasource db {
+  provider = "mongodb"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id              String      @id @default(auto()) @map("_id") @db.ObjectId
+  name            String?
+  email           String      @unique
+  provincia       String?
+  emailVerified   DateTime?
+  image           String?
+  description     String?
+  ready           Boolean?    @default(false)//serve per i detailer
+  hashedPassword  String?
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+  userType        UserType?   // Campo per distinguere il tipo di utente
+  bookings        Booking[]   @relation(name: "UserBookings") // Prenotazioni fatte dall'utente
+  detailerBookings Booking[]   @relation(name: "DetailerBookings") // Prenotazioni ricevute dal detailer
+  services        Service[]  @relation(name: "DetailerServices") // Servizi offerti dal detailer (se userType è DETAILER)
+  accounts        Account[]
+     // Relazione con Account
+}
+
+enum UserType {
+  user   // Cliente normale
+  detailer   // Dettagliatore
+}
+
+model Service {
+  id              String      @id @default(auto()) @map("_id") @db.ObjectId
+  type            ServiceType
+  price           Float       // Prezzo del servizio
+  userId          String
+  bookings        Booking[]   // Prenotazioni associate a questo servizio
+  
+  user            User        @relation(name: "DetailerServices", fields: [userId], references: [id]) // Relazione con l'utente (Detailer)
+}
+
+enum ServiceType {
+  interno
+  esterno
+  completo
+}
+
+model Booking {
+  id            String      @id @default(auto()) @map("_id") @db.ObjectId
+  userId        String
+  detailerId    String
+  serviceId     String
+  timeSlot      DateTime    // Orario della prenotazione
+  status        BookingStatus @default(PENDING) // Stato della prenotazione
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+ 
+  user          User        @relation(name: "UserBookings", fields: [userId], references: [id]) // Relazione con l'utente (Cliente)
+  detailer      User        @relation(name: "DetailerBookings", fields: [detailerId], references: [id]) // Relazione con l'utente (Detailer)
+  service       Service     @relation(fields: [serviceId], references: [id])
+}
+
+enum BookingStatus {
+  PENDING
+  CONFIRMED
+  CANCELED
+}
+
+model Account {
+  id                String @id @default(auto()) @map("_id") @db.ObjectId
+  userId            String
+  type              String
+  provincia     String?
+  userType          UserType?
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.String
+  access_token      String? @db.String  
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.String
+  session_state     String?
+
+  user              User   @relation(fields: [userId], references: [id])
+  
+  @@unique([provider, providerAccountId])
+}
+
+
